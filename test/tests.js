@@ -417,6 +417,24 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
+    it('allows next for non-transaction', function(done) {
+      BPromise.resolve().then(function() {
+        var route = ae.route(function(req, res, next, query) {
+          query; // use all params (jshint)
+          next();
+        });
+        return route(req, res, next); // invoke route
+      })
+      .then(function() {
+        return next.wait;
+      })
+      .then(function() {
+        expect(next).to.have.been.calledOnce;
+        expect(next).to.have.been.calledWithExactly();
+      })
+      .then(done, done);
+    });
+
     it('throws if next is called with non-error', function(done) {
       BPromise.resolve().then(function() {
         var route = ae.route(function(req, res, next, query) {

@@ -12,7 +12,7 @@ var BPromise = require('bluebird');
 var setupRequest = function(db, req, options) {
   if (req.azul && req.azul.query) { return; } // already set up
 
-  var opts = _.defaults({}, options, { transaction: true });
+  var opts = _.defaults({}, options, { transaction: false });
   var transaction;
   var query = db.query;
   if (opts.transaction) {
@@ -99,13 +99,13 @@ var wrapNext = function(db, req, res, next) {
   return function() {
     var args = _.toArray(arguments);
     var promise = BPromise.resolve();
-    if (!args[0]) {
+    if (!args[0] && res.azul) {
       promise = res.azul.commit();
     }
-    else if (args[0] instanceof Error) {
+    else if ((args[0] instanceof Error) && res.azul) {
       promise = res.azul.rollback();
     }
-    else {
+    else if (args[0] && !(args[0] instanceof Error)) {
       throw new Error('Unexpected call to `next` with non-error.');
     }
     return promise.then(next.apply.bind(next, this, args)).catch(next);
