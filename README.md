@@ -31,7 +31,7 @@ Type: `Database`
 
 The database from which to create transactions. The result of this call is an
 object that provides the below functions. It is also an alias for the
-[`route`](#route) function.
+[`route`](#routefunction-options) function.
 
 ### #route(function, [options])
 
@@ -61,7 +61,7 @@ Express middleware for rolling back transactions. Also aliased as `catch` and
 all of the following are true:
 
  - The [`transaction`](#transaction) middleware is active
- - The route is not wrapped by [`route`](#route)
+ - The route is not wrapped by [`route`](#routefunction-options)
  - The route calls `next` with an error argument
 
 It does not hurt to enable it all the time, though.
