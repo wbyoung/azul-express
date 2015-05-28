@@ -33,7 +33,7 @@ The database from which to create transactions. The result of this call is an
 object that provides the below functions. It is also an alias for the
 [`route`](#route) function.
 
-### ae.route(function, [options])
+### #route(function, [options])
 
 #### function
 
@@ -50,11 +50,11 @@ Type: `Boolean`
 Enable transaction support for this route regardless of whether the
 [`transaction`](#transaction) middleware is active.
 
-### ae.transaction
+### #transaction
 
 Express middleware for enabling transactions.
 
-### ae.rollback
+### #rollback
 
 Express middleware for rolling back transactions. Also aliased as `catch` and
 `error`. This is intended for advanced use and only needs to be enabled when
