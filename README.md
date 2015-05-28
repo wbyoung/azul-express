@@ -1,13 +1,15 @@
-# Azul.js Express Transaction Middleware
+# Azul.js Addon for Express
 
 [![NPM version][npm-image]][npm-url] [![Build status][travis-image]][travis-url] [![Code Climate][codeclimate-image]][codeclimate-url] [![Coverage Status][coverage-image]][coverage-url] [![Dependencies][david-image]][david-url] [![devDependencies][david-dev-image]][david-dev-url]
 
-Simplify use of [transactions][azul-transactions] on a per-request basis when
-using [Azul.js][azul] with Express. For more information, see the
-[Azul.js transaction guide][azul-transactions].
+This addon simplifies use of Azul.js with Express. For a full overview of this
+module, [read the Azul.js Express guide][azul-express].
 
 ```js
+var azulExpress = require('azul-express')(db);
+
 app.use(azulExpress.transaction);
+
 app.post('/articles', azulExpress.route(function(req, res, next, Article, Author) {
   Author.objects.findOrCreate({ name: req.body.author }).then(function(author) {
     return author.createArticle({ title: req.body.title }).save();
@@ -19,35 +21,6 @@ app.post('/articles', azulExpress.route(function(req, res, next, Article, Author
 }));
 ```
 
-For reference, the full setup for the above example would look something like this:
-
-```js
-var express = require('express');
-var app = express();
-var bodyParser = require('body-parser');
-var BPromise = require('bluebird');
-
-var azul = require('azul');
-var env = process.env.NODE_ENV || 'development';
-var config = require('./azulfile')[env];
-var db = azul(config);
-var azulExpress = require('azul-express')(db);
-
-db.model('Article', {
-  title: db.attr(),
-  author: db.belongsTo(),
-});
-
-db.model('Author', {
-  name: db.attr(),
-  articles: db.hasMany(),
-});
-
-app.use(bodyParser.urlencoded());
-
-// insert above code here
-```
-
 ## API
 
 ### azulExpress(db)
@@ -56,15 +29,49 @@ app.use(bodyParser.urlencoded());
 
 Type: `Database`
 
-The database from which to create transactions.
+The database from which to create transactions. The result of this call is an
+object that provides the below functions. It is also an alias for the
+[`route`](#route) function.
 
+### ae.route(function, [options])
+
+#### function
+
+Type: `Function`
+
+An Express route (or middleware) decorated with Azul.js parameters. For
+detailed examples, [read the full guide][azul-express]. This wraps the given
+function and returns a new function compatible with Express.
+
+#### options.transaction
+
+Type: `Boolean`
+
+Enable transaction support for this route regardless of whether the
+[`transaction`](#transaction) middleware is active.
+
+### ae.transaction
+
+Express middleware for enabling transactions.
+
+### ae.rollback
+
+Express middleware for rolling back transactions. Also aliased as `catch` and
+`error`. This is intended for advanced use and only needs to be enabled when
+all of the following are true:
+
+ - The [`transaction`](#transaction) middleware is active
+ - The route is not wrapped by [`route`](#route)
+ - The route calls `next` with an error argument
+
+It does not hurt to enable it all the time, though.
 
 ## License
 
 This project is distributed under the MIT license.
 
 [azul]: http://www.azuljs.com/
-[azul-transactions]: http://www.azuljs.com/guides/transactions/
+[azul-express]: http://www.azuljs.com/guides/express/
 
 [travis-image]: http://img.shields.io/travis/wbyoung/azul-express.svg?style=flat
 [travis-url]: http://travis-ci.org/wbyoung/azul-express
