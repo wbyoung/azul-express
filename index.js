@@ -291,6 +291,7 @@ var route = function(db, fn, options) {
 module.exports = function(db) {
   var fn = _.partial(route, db);
   fn.route = fn;
+  fn.di = fn;
   fn.transaction = transactionMiddleware(db);
   fn.rollback = rollbackMiddleware(db);
   fn.catch = fn.rollback;
