@@ -52,6 +52,12 @@ var pspy = function() {
   return sinon.spy(resolve);
 };
 
+var rspy = function(route) {
+  return _.extend(sinon.spy(route), {
+    toString: route.toString.bind(route)
+  });
+};
+
 describe('azul-express', function() {
   beforeEach(function() {
     adapter = Adapter.create();
@@ -185,6 +191,20 @@ describe('azul-express', function() {
 
   });
 
+  var articleRoute = function(req, res, query, Article) {
+    query.select('comments').then(function() {
+      return Article.objects.fetch();
+    })
+    .then(function() {
+      res.end();
+    });
+  };
+
+  var articleErrorRoute = function(err, req, res, next, query, Article) {
+    Article; // use all params (jshint)
+    res.end();
+  };
+
   describe('wrapped route', function() {
 
     it('recognizes a next parameter', function() {
@@ -231,24 +251,17 @@ describe('azul-express', function() {
       });
     });
 
-    it('works without transactions', function(done) {
-      var context = {};
-      BPromise.bind(context).then(function() {
-        var route = ae.route(function(req, res, query, Article) {
-          context.query = query;
-          context.Article = Article;
-          query.select('comments').then(function() {
-            return Article.objects.fetch();
-          })
-          .then(function() {
-            res.end();
-          });
-        });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
-        expect(context.query).to.eql(req.azul.query);
-        expect(context.Article.query).to.eql(req.azul.query);
+    it('allows execution of sql', function(done) {
+      var spy = rspy(articleRoute);
+      var route = ae.route(spy);
+
+      route(req, res, next).then(function() {
+        var query = spy.getCall(0).args.slice(-2)[0];
+        var Article = spy.getCall(0).args.slice(-2)[1];
+        expect(query).to.eql(req.azul.query);
+        expect(query).to.eql(db.query);
+        expect(Article.query).to.eql(req.azul.query);
+        expect(Article).to.equal(db.model('article'));
         expect(adapter.executed).to.eql([]);
         return res._end.wait;
       })
@@ -262,14 +275,12 @@ describe('azul-express', function() {
     });
 
     it('can call next', function(done) {
-      BPromise.resolve().then(function() {
-        var route = ae.route(function(req, res, next, query) {
-          query; // use all params (jshint)
-          next();
-        });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
+      var route = ae.route(function(req, res, next, query) {
+        query; // use all params (jshint)
+        next();
+      });
+
+      route(req, res, next).then(function() {
         return next.wait;
       })
       .then(function() {
@@ -280,25 +291,18 @@ describe('azul-express', function() {
     });
 
     it('works with transaction middleware installed', function(done) {
-      var context = {};
       var setup = pspy(); ae.transaction(req, res, setup); // setup middleware
-      setup.wait.bind(context).then(function() {
-        var route = ae.route(function(req, res, query, Article) {
-          context.query = query;
-          context.Article = Article;
-          query.select('comments').then(function() {
-            return Article.objects.fetch();
-          })
-          .then(function() {
-            res.end();
-          });
-        });
+      var spy = rspy(articleRoute);
+      setup.wait.bind().then(function() {
+        var route = ae.route(spy);
         return route(req, res, next); // invoke route
       })
       .then(function() {
-        expect(context.query).to.eql(req.azul.query);
-        expect(context.query.transaction()).to.eql(req.azul.transaction);
-        expect(context.Article.query).to.eql(req.azul.query);
+        var query = spy.getCall(0).args.slice(-2)[0];
+        var Article = spy.getCall(0).args.slice(-2)[1];
+        expect(query).to.eql(req.azul.query);
+        expect(query.transaction()).to.eql(req.azul.transaction);
+        expect(Article.query).to.eql(req.azul.query);
         expect(adapter.executed).to.eql(['BEGIN']);
         return res._end.wait;
       })
@@ -318,24 +322,15 @@ describe('azul-express', function() {
 
   describe('wrapped route w/ transaction', function() {
     it('can create transaction via options', function(done) {
-      var context = {};
-      BPromise.bind(context).then(function() {
-        var route = ae.route(function(req, res, query, Article) {
-          context.query = query;
-          context.Article = Article;
-          query.select('comments').then(function() {
-            return Article.objects.fetch();
-          })
-          .then(function() {
-            res.end();
-          });
-        }, { transaction: true });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
-        expect(context.query).to.eql(req.azul.query);
-        expect(context.query.transaction()).to.eql(req.azul.transaction);
-        expect(context.Article.query).to.eql(req.azul.query);
+      var spy = rspy(articleRoute);
+      var route = ae.route(spy, { transaction: true });
+
+      route(req, res, next).then(function() {
+        var query = spy.getCall(0).args.slice(-2)[0];
+        var Article = spy.getCall(0).args.slice(-2)[1];
+        expect(query).to.eql(req.azul.query);
+        expect(query.transaction()).to.eql(req.azul.transaction);
+        expect(Article.query).to.eql(req.azul.query);
         expect(adapter.executed).to.eql(['BEGIN']);
         return res._end.wait;
       })
@@ -352,19 +347,15 @@ describe('azul-express', function() {
     });
 
     it('works for defining error middleware', function(done) {
-      var context = {};
-      BPromise.bind(context).then(function() {
-        var route = ae.route(function(err, req, res, next, query, Article) {
-          context.query = query;
-          context.Article = Article;
-          res.end();
-        }, { transaction: true });
-        return route(new Error('Error'), req, res, next); // invoke route
-      })
-      .then(function() {
-        expect(context.query).to.eql(req.azul.query);
-        expect(context.query.transaction()).to.eql(req.azul.transaction);
-        expect(context.Article.query).to.eql(req.azul.query);
+      var spy = rspy(articleErrorRoute);
+      var route = ae.route(spy, { transaction: true });
+
+      route(new Error('Error'), req, res, next).then(function() {
+        var query = spy.getCall(0).args.slice(-2)[0];
+        var Article = spy.getCall(0).args.slice(-2)[1];
+        expect(query).to.eql(req.azul.query);
+        expect(query.transaction()).to.eql(req.azul.transaction);
+        expect(Article.query).to.eql(req.azul.query);
         expect(adapter.executed).to.eql(['BEGIN']);
         return res._end.wait;
       })
@@ -377,14 +368,12 @@ describe('azul-express', function() {
 
     it('performs rollback if next is called with error', function(done) {
       var error = new Error('Expected');
-      BPromise.resolve().then(function() {
-        var route = ae.route(function(req, res, next, query) {
-          query; // use all params (jshint)
-          next(error);
-        }, { transaction: true });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
+      var route = ae.route(function(req, res, next, query) {
+        query; // use all params (jshint)
+        next(error);
+      }, { transaction: true });
+
+      route(req, res, next).then(function() {
         expect(adapter.executed).to.eql(['BEGIN']);
         return next.wait;
       })
@@ -399,15 +388,13 @@ describe('azul-express', function() {
     });
 
     it('performs only one rollback if rolled back manually & through error', function(done) {
-      BPromise.resolve().then(function() {
-        var route = ae.route(function(req, res, next, query) {
-          query; // use all params (jshint)
-          res.azul.rollback();
-          next(new Error('Expected'));
-        }, { transaction: true });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
+      var route = ae.route(function(req, res, next, query) {
+        query; // use all params (jshint)
+        res.azul.rollback();
+        next(new Error('Expected'));
+      }, { transaction: true });
+
+      route(req, res, next).then(function() {
         return next.wait;
       })
       .then(function() {
@@ -418,14 +405,12 @@ describe('azul-express', function() {
     });
 
     it('commits if next is called without arguments', function(done) {
-      BPromise.resolve().then(function() {
-        var route = ae.route(function(req, res, next, query) {
-          query; // use all params (jshint)
-          next();
-        }, { transaction: true });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
+      var route = ae.route(function(req, res, next, query) {
+        query; // use all params (jshint)
+        next();
+      }, { transaction: true });
+
+      route(req, res, next).then(function() {
         expect(adapter.executed).to.eql(['BEGIN']);
         return next.wait;
       })
@@ -439,14 +424,12 @@ describe('azul-express', function() {
     });
 
     it('throws if next is called with non-error', function(done) {
-      BPromise.resolve().then(function() {
-        var route = ae.route(function(req, res, next, query) {
-          query; // use all params (jshint)
-          next('value');
-        }, { transaction: true });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
+      var route = ae.route(function(req, res, next, query) {
+        query; // use all params (jshint)
+        next('value');
+      }, { transaction: true });
+
+      route(req, res, next).then(function() {
         expect(adapter.executed).to.eql(['BEGIN']);
         return next.wait;
       })
@@ -463,13 +446,11 @@ describe('azul-express', function() {
       });
 
       it('calls next with error', function(done) {
-        BPromise.bind().then(function() {
-          var route = ae.route(function(req, res, query, Article) {
-            /* jshint unused: false */
-          }, { transaction: true });
-          return route(req, res, next); // invoke route
-        })
-        .then(function() {
+        var route = ae.route(function(req, res, query, Article) {
+          /* jshint unused: false */
+        }, { transaction: true });
+
+        route(req, res, next).then(function() {
           return next.wait;
         })
         .then(function() {
@@ -488,14 +469,12 @@ describe('azul-express', function() {
       });
 
       it('calls next with error', function(done) {
-        BPromise.bind().then(function() {
-          var route = ae.route(function(req, res, query, Article) {
-            Article; // use all params (jshint)
-            res.end();
-          }, { transaction: true });
-          return route(req, res, next); // invoke route
-        })
-        .then(function() {
+        var route = ae.route(function(req, res, query, Article) {
+          Article; // use all params (jshint)
+          res.end();
+        }, { transaction: true });
+
+        route(req, res, next).then(function() {
           return res.azul.commit();
         })
         .then(function() {
@@ -518,14 +497,12 @@ describe('azul-express', function() {
       });
 
       it('calls next with error', function(done) {
-        BPromise.bind().then(function() {
-          var route = ae.route(function(req, res, query, Article) {
-            Article; // use all params (jshint)
-            res.azul.rollback();
-          }, { transaction: true });
-          return route(req, res, next); // invoke route
-        })
-        .then(function() {
+        var route = ae.route(function(req, res, query, Article) {
+          Article; // use all params (jshint)
+          res.azul.rollback();
+        }, { transaction: true });
+
+        route(req, res, next).then(function() {
           return res.azul.rollback();
         })
         .then(function() {
@@ -553,22 +530,20 @@ describe('azul-express', function() {
       adapter.respond(/select \* from "articles"/i,
         [{ id: 1, 'author_id': 5 }]);
 
-      BPromise.bind().then(function() {
-        var route = ae.route(function(req, res, query, Article) {
-          Article.objects.find(1).tap(function(article) {
-            return article.fetchAuthor();
-          })
-          .tap(function(article) {
-            return article.commentObjects.fetch();
-          })
-          .then(function() {
-            res.end();
-          })
-          .catch(done);
-        }, { transaction: true });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
+      var route = ae.route(function(req, res, query, Article) {
+        Article.objects.find(1).tap(function(article) {
+          return article.fetchAuthor();
+        })
+        .tap(function(article) {
+          return article.commentObjects.fetch();
+        })
+        .then(function() {
+          res.end();
+        })
+        .catch(done);
+      }, { transaction: true });
+
+      route(req, res, next).then(function() {
         expect(adapter.executed).to.eql(['BEGIN']);
         return res._end.wait;
       })

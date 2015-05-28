@@ -179,10 +179,12 @@ var makeExpressErrorRoute = function(fn) {
  */
 var modelBinder = function(db, req) {
   var query = req.azul.query;
+  var simple = !req.azul.transaction;
   var bound = {};
   var bind = function(/*name*/) {
     var name = arguments[0].toLowerCase();
-    if (!bound[name]) {
+    if (!bound[name] && simple) { bound[name] = db.model(name); }
+    else if (!bound[name]) {
       var subclass = bound[name] = db.model(name).extend();
       var prototype = subclass.__class__.prototype;
 
