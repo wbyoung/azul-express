@@ -65,6 +65,18 @@ describe('azul-express', function() {
     ae = azulExpress(db);
   });
 
+  it('is an alias for route', function() {
+    expect(ae).to.equal(ae.route);
+  });
+
+  it('defines error as an alias for rollback', function() {
+    expect(ae.error).to.equal(ae.rollback);
+  });
+
+  it('defines catch as an alias for rollback', function() {
+    expect(ae.catch).to.equal(ae.rollback);
+  });
+
   describe('middleware', function() {
 
     describe('when begun', function() {
@@ -219,7 +231,37 @@ describe('azul-express', function() {
       });
     });
 
-    it('works with middleware installed', function(done) {
+    it('works without transactions', function(done) {
+      var context = {};
+      BPromise.bind(context).then(function() {
+        var route = ae.route(function(req, res, query, Article) {
+          context.query = query;
+          context.Article = Article;
+          query.select('comments').then(function() {
+            return Article.objects.fetch();
+          })
+          .then(function() {
+            res.end();
+          });
+        });
+        return route(req, res, next); // invoke route
+      })
+      .then(function() {
+        expect(context.query).to.eql(req.azul.query);
+        expect(context.Article.query).to.eql(req.azul.query);
+        expect(adapter.executed).to.eql([]);
+        return res._end.wait;
+      })
+      .then(function() {
+        expect(adapter.executed).to.eql([
+          'SELECT * FROM "comments"',
+          'SELECT * FROM "articles"',
+        ]);
+      })
+      .then(done, done);
+    });
+
+    it('works with transaction middleware installed', function(done) {
       var context = {};
       var setup = pspy(); ae.transaction(req, res, setup); // setup middleware
       setup.wait.bind(context).then(function() {
@@ -254,7 +296,7 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
-    it('works without middleware installed', function(done) {
+    it('can create transaction via options', function(done) {
       var context = {};
       BPromise.bind(context).then(function() {
         var route = ae.route(function(req, res, query, Article) {
@@ -266,7 +308,7 @@ describe('azul-express', function() {
           .then(function() {
             res.end();
           });
-        });
+        }, { transaction: true });
         return route(req, res, next); // invoke route
       })
       .then(function() {
@@ -295,7 +337,7 @@ describe('azul-express', function() {
           context.query = query;
           context.Article = Article;
           res.end();
-        });
+        }, { transaction: true });
         return route(new Error('Error'), req, res, next); // invoke route
       })
       .then(function() {
@@ -318,7 +360,7 @@ describe('azul-express', function() {
         var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           next(error);
-        });
+        }, { transaction: true });
         return route(req, res, next); // invoke route
       })
       .then(function() {
@@ -335,13 +377,13 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
-    it('performs only performs one rollback if rolled back manually & through error', function(done) {
+    it('performs only one rollback if rolled back manually & through error', function(done) {
       BPromise.resolve().then(function() {
         var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           res.azul.rollback();
           next(new Error('Expected'));
-        });
+        }, { transaction: true });
         return route(req, res, next); // invoke route
       })
       .then(function() {
@@ -359,7 +401,7 @@ describe('azul-express', function() {
         var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           next();
-        });
+        }, { transaction: true });
         return route(req, res, next); // invoke route
       })
       .then(function() {
@@ -380,7 +422,7 @@ describe('azul-express', function() {
         var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           next('value');
-        });
+        }, { transaction: true });
         return route(req, res, next); // invoke route
       })
       .then(function() {
@@ -403,7 +445,7 @@ describe('azul-express', function() {
         BPromise.bind().then(function() {
           var route = ae.route(function(req, res, query, Article) {
             /* jshint unused: false */
-          });
+          }, { transaction: true });
           return route(req, res, next); // invoke route
         })
         .then(function() {
@@ -429,7 +471,7 @@ describe('azul-express', function() {
           var route = ae.route(function(req, res, query, Article) {
             Article; // use all params (jshint)
             res.end();
-          });
+          }, { transaction: true });
           return route(req, res, next); // invoke route
         })
         .then(function() {
@@ -459,7 +501,7 @@ describe('azul-express', function() {
           var route = ae.route(function(req, res, query, Article) {
             Article; // use all params (jshint)
             res.azul.rollback();
-          });
+          }, { transaction: true });
           return route(req, res, next); // invoke route
         })
         .then(function() {
@@ -502,7 +544,7 @@ describe('azul-express', function() {
             res.end();
           })
           .catch(done);
-        });
+        }, { transaction: true });
         return route(req, res, next); // invoke route
       })
       .then(function() {

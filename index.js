@@ -9,11 +9,16 @@ var BPromise = require('bluebird');
  * @param {Database} db
  * @param {Request} req
  */
-var setupRequest = function(db, req) {
-  if (req.azul && req.azul.transaction) { return; } // already set up
+var setupRequest = function(db, req, options) {
+  if (req.azul && req.azul.query) { return; } // already set up
 
-  var transaction = db.query.transaction();
-  var query = db.query.transaction(transaction);
+  var opts = _.defaults({}, options, { transaction: true });
+  var transaction;
+  var query = db.query;
+  if (opts.transaction) {
+    transaction = db.query.transaction();
+    query = query.transaction(transaction);
+  }
   req.azul = _.extend({}, req.azul, {
     transaction: transaction,
     query: query,
@@ -29,6 +34,7 @@ var setupRequest = function(db, req) {
  * @param {Function} next
  */
 var setupResponse = function(db, req, res, next) {
+  if (!req.azul.transaction) { return; } // no setup required
   if (res.azul && res.azul.commit) { return; } // already set up
 
   var transaction = req.azul.transaction;
@@ -107,14 +113,14 @@ var wrapNext = function(db, req, res, next) {
 };
 
 /**
- * Make middleware for a specific database.
+ * Make transaction middleware for a specific database.
  *
  * @param {Database} db
  * @return {Function} The middleware.
  */
-var middleware = function(db) {
+var transactionMiddleware = function(db) {
   return function(req, res, next) {
-    setupRequest(db, req);
+    setupRequest(db, req, { transaction: true });
     setupResponse(db, req, res, next);
     req.azul.transaction.begin().then(_.ary(next, 0), next);
   };
@@ -127,37 +133,35 @@ var middleware = function(db) {
  * @param {Database} db
  * @return {Function} The middleware.
  */
-var errorMiddleware = function(/*db*/) {
+var rollbackMiddleware = function(/*db*/) {
   return function(err, req, res, next) {
     res.azul.rollback().return(err).then(next).catch(next);
   };
 };
 
 /**
- * Make a standard route for express. Basically, just wrap a function in
- * another that explicitly defines 3 arguments.
+ * Make a standard route for express. Pass the original arguments followed by
+ * req, res, next to the wrapped function.
  *
  * @param {Function} fn
  * @return {Function}
  */
 var makeExpressStandardRoute = function(fn) {
   return function(req, res, next) {
-    /* jshint unused: false */
-    return fn.apply(this, arguments);
+    return fn.call(this, _.toArray(arguments), req, res, next);
   };
 };
 
 /**
- * Make a standard route for express. Basically, just wrap a function in
- * another that explicitly defines 4 arguments.
+ * Make an error route for express. Pass the original arguments followed by
+ * req, res, next to the wrapped function.
  *
  * @param {Function} fn
  * @return {Function}
  */
 var makeExpressErrorRoute = function(fn) {
   return function(err, req, res, next) {
-    /* jshint unused: false */
-    return fn.apply(this, arguments);
+    return fn.call(this, _.toArray(arguments), req, res, next);
   };
 };
 
@@ -217,7 +221,10 @@ var modelBinder = function(db, req) {
  * @param {Function} fn The Express route to wrap.
  * @return {Function} The wrapped route.
  */
-var route = function(db, fn) {
+var route = function(db, fn, options) {
+  var opts = _.defaults({}, options, {
+    transaction: false
+  });
 
   var match = fn.toString().match(/function.*?\((.*?)\)/i);
   var params = _.invoke(match[1].split(','), 'trim');
@@ -243,16 +250,15 @@ var route = function(db, fn) {
     makeExpressErrorRoute :
     makeExpressStandardRoute;
 
-  return expressRoute(function() {
-    var args = _.toArray(arguments);
-    var referenceArgs = isErrorRoute ? args.slice(1) : args;
-    var req = referenceArgs[0];
-    var res = referenceArgs[1];
-    var next = referenceArgs[2];
+  return expressRoute(function(args, req, res, next) {
+    var promise = BPromise.resolve();
     var begun = req.azul && req.azul.transaction;
-
-    setupRequest(db, req);
+    setupRequest(db, req, { transaction: opts.transaction });
     setupResponse(db, req, res, next);
+
+    if (opts.transaction && !begun) {
+      promise = req.azul.transaction.begin();
+    }
 
     // form express arguments
     var expressArgs = _.take(args, expressParams.length);
@@ -272,7 +278,6 @@ var route = function(db, fn) {
     var bound = fn.apply.bind(fn, this, combinedArgs);
 
     // start the transaction if it wasn't previously begun
-    var promise = begun ? BPromise.resolve() : req.azul.transaction.begin();
     return promise.then(bound).catch(next);
   });
 };
@@ -280,7 +285,9 @@ var route = function(db, fn) {
 module.exports = function(db) {
   var fn = _.partial(route, db);
   fn.route = fn;
-  fn.transaction = middleware(db);
-  fn.catch = fn.error = errorMiddleware(db);
+  fn.transaction = transactionMiddleware(db);
+  fn.rollback = rollbackMiddleware(db);
+  fn.catch = fn.rollback;
+  fn.error = fn.rollback;
   return fn;
 };
