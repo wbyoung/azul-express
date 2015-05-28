@@ -229,6 +229,9 @@ var route = function(db, fn, options) {
   });
 
   var match = fn.toString().match(/function.*?\((.*?)\)/i);
+  if (!match) {
+    throw new Error('Cannot create route for function: ' + fn.toString());
+  }
   var params = _.invoke(match[1].split(','), 'trim');
   var isAzulParam = function(arg) { return arg.match(/^([A-Z]\w*|query)$/); };
   var isExpressParam = _.negate(isAzulParam);

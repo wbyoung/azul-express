@@ -239,6 +239,16 @@ describe('azul-express', function() {
       }).to.throw(/unexpected arguments:.*query, item, bad/i);
     });
 
+    it('throws when function cannot be parsed', function() {
+      var route = _.extend(function() {}, {
+        toString: function() { return 'unstringable'; },
+      });
+      expect(function() {
+        ae.route(route);
+      }).to.throw(/cannot create route.*function.*unstringable/i);
+    });
+
+
     describe('with azul params', function() {
       beforeEach(function() {
         this.route = ae.route(function(req, res, next, query, Article) {
