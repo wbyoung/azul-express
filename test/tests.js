@@ -261,6 +261,24 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
+    it('can call next', function(done) {
+      BPromise.resolve().then(function() {
+        var route = ae.route(function(req, res, next, query) {
+          query; // use all params (jshint)
+          next();
+        });
+        return route(req, res, next); // invoke route
+      })
+      .then(function() {
+        return next.wait;
+      })
+      .then(function() {
+        expect(next).to.have.been.calledOnce;
+        expect(next).to.have.been.calledWithExactly();
+      })
+      .then(done, done);
+    });
+
     it('works with transaction middleware installed', function(done) {
       var context = {};
       var setup = pspy(); ae.transaction(req, res, setup); // setup middleware
@@ -296,6 +314,9 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
+  });
+
+  describe('wrapped route w/ transaction', function() {
     it('can create transaction via options', function(done) {
       var context = {};
       BPromise.bind(context).then(function() {
@@ -413,24 +434,6 @@ describe('azul-express', function() {
         expect(next).to.have.been.calledWithExactly();
         expect(adapter.clients.length).to.eql(1);
         expect(adapter.executed).to.eql(['BEGIN', 'COMMIT']);
-      })
-      .then(done, done);
-    });
-
-    it('allows next for non-transaction', function(done) {
-      BPromise.resolve().then(function() {
-        var route = ae.route(function(req, res, next, query) {
-          query; // use all params (jshint)
-          next();
-        });
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
-        return next.wait;
-      })
-      .then(function() {
-        expect(next).to.have.been.calledOnce;
-        expect(next).to.have.been.calledWithExactly();
       })
       .then(done, done);
     });
