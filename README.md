@@ -2,8 +2,8 @@
 
 [![NPM version][npm-image]][npm-url] [![Build status][travis-image]][travis-url] [![Code Climate][codeclimate-image]][codeclimate-url] [![Coverage Status][coverage-image]][coverage-url] [![Dependencies][david-image]][david-url] [![devDependencies][david-dev-image]][david-dev-url]
 
-This addon simplifies use of Azul.js with Express. For a full overview of this
-module, [read the Azul.js Express guide][azul-express].
+This addon simplifies use of [Azul.js][azul] with Express. For a full overview
+of this module, [read the Azul.js Express guide][azul-express].
 
 ```js
 var azulExpress = require('azul-express')(db);
