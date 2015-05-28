@@ -64,7 +64,7 @@ all of the following are true:
  - The route is not wrapped by [`route`](#routefunction-options)
  - The route calls `next` with an error argument
 
-It does not hurt to enable it all the time, though.
+When in doubt, enable it. It is always safe to enable.
 
 ## License
 

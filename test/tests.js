@@ -174,19 +174,33 @@ describe('azul-express', function() {
 
   });
 
-  describe('error middleware', function() {
+  describe('rollback middleware', function() {
 
-    it('performs rollback', function(done) {
-      var setup = pspy();
-      ae.transaction(req, res, setup); // setup
-      setup.wait.then(function() {
-        ae.error(new Error('exepcted'), req, res, next);
-        return next.wait;
-      })
-      .then(function() {
-        expect(adapter.clients.length).to.eql(1);
-        expect(adapter.executed).to.eql(['BEGIN', 'ROLLBACK']);
+    it('is always safe to use', function(done) {
+      var error = new Error('exepcted');
+      ae.rollback(error, req, res, next);
+      next.wait.then(function() {
+        expect(next.getCall(0).args[0]).to.equal(error);
+        expect(adapter.executed).to.eql([]);
       }).then(done, done);
+    });
+
+    describe('with transaction middleware enabled', function() {
+      beforeEach(function(done) {
+        var setup = pspy();
+        ae.transaction(req, res, setup); // setup middleware
+        setup.wait.return().then(done, done);
+      });
+
+      it('performs rollback', function(done) {
+        var error = new Error('exepcted');
+        ae.rollback(error, req, res, next);
+        next.wait.then(function() {
+          expect(next.getCall(0).args[0]).to.equal(error);
+          expect(adapter.clients.length).to.eql(1);
+          expect(adapter.executed).to.eql(['BEGIN', 'ROLLBACK']);
+        }).then(done, done);
+      });
     });
 
   });

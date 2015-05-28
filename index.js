@@ -135,7 +135,8 @@ var transactionMiddleware = function(db) {
  */
 var rollbackMiddleware = function(/*db*/) {
   return function(err, req, res, next) {
-    res.azul.rollback().return(err).then(next).catch(next);
+    var promise = res.azul ? res.azul.rollback() : BPromise.resolve();
+    promise.return(err).then(next).catch(next);
   };
 };
 
