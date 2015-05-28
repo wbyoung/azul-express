@@ -290,38 +290,44 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
-    it('works with transaction middleware installed', function(done) {
-      var setup = pspy(); ae.transaction(req, res, setup); // setup middleware
-      var spy = rspy(articleRoute);
-      setup.wait.bind().then(function() {
+    describe('with transaction middleware enabled', function() {
+      beforeEach(function(done) {
+        var setup = pspy();
+        ae.transaction(req, res, setup); // setup middleware
+        setup.wait.return().then(done, done);
+      });
+
+      it('executes sql in transaction', function(done) {
+        var spy = rspy(articleRoute);
         var route = ae.route(spy);
-        return route(req, res, next); // invoke route
-      })
-      .then(function() {
-        var query = spy.getCall(0).args.slice(-2)[0];
-        var Article = spy.getCall(0).args.slice(-2)[1];
-        expect(query).to.eql(req.azul.query);
-        expect(query.transaction()).to.eql(req.azul.transaction);
-        expect(Article.query).to.eql(req.azul.query);
-        expect(adapter.executed).to.eql(['BEGIN']);
-        return res._end.wait;
-      })
-      .then(function() {
-        expect(adapter.clients.length).to.eql(1);
-        expect(adapter.executed).to.eql([
-          'BEGIN',
-          'SELECT * FROM "comments"',
-          'SELECT * FROM "articles"',
-          'COMMIT'
-        ]);
-      })
-      .then(done, done);
+
+        route(req, res, next).then(function() {
+          var query = spy.getCall(0).args.slice(-2)[0];
+          var Article = spy.getCall(0).args.slice(-2)[1];
+          expect(query).to.eql(req.azul.query);
+          expect(query.transaction()).to.eql(req.azul.transaction);
+          expect(Article.query).to.eql(req.azul.query);
+          expect(adapter.executed).to.eql(['BEGIN']);
+          return res._end.wait;
+        })
+        .then(function() {
+          expect(adapter.clients.length).to.eql(1);
+          expect(adapter.executed).to.eql([
+            'BEGIN',
+            'SELECT * FROM "comments"',
+            'SELECT * FROM "articles"',
+            'COMMIT'
+          ]);
+        })
+        .then(done, done);
+      });
     });
 
   });
 
   describe('wrapped route w/ transaction', function() {
-    it('can create transaction via options', function(done) {
+
+    it('allows execution of sql', function(done) {
       var spy = rspy(articleRoute);
       var route = ae.route(spy, { transaction: true });
 
