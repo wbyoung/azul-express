@@ -1,6 +1,6 @@
 {
-  "name": "azul-transaction",
-  "version": "0.0.1",
+  "name": "azul-express",
+  "version": "0.0.0",
   "description": "Transaction Middleware for Azul.js",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/wbyoung/azul-transaction.git"
+    "url": "git://github.com/wbyoung/azul-express.git"
   },
   "keywords": [
     "postgres",
@@ -23,9 +23,9 @@
   "author": "Whitney Young",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/wbyoung/azul-transaction/issues"
+    "url": "https://github.com/wbyoung/azul-express/issues"
   },
-  "homepage": "https://github.com/wbyoung/azul-transaction",
+  "homepage": "https://github.com/wbyoung/azul-express",
   "files": [
     "README.md",
     "LICENSE",

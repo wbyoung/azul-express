@@ -7,7 +7,8 @@ using [Azul.js][azul] with Express. For more information, see the
 [Azul.js transaction guide][azul-transactions].
 
 ```js
-app.post('/articles', at.route(function(req, res, next, Article, Author) {
+app.use(azulExpress.transaction);
+app.post('/articles', azulExpress.route(function(req, res, next, Article, Author) {
   Author.objects.findOrCreate({ name: req.body.author }).then(function(author) {
     return author.createArticle({ title: req.body.title }).save();
   })
@@ -30,7 +31,7 @@ var azul = require('azul');
 var env = process.env.NODE_ENV || 'development';
 var config = require('./azulfile')[env];
 var db = azul(config);
-var at = require('azul-transaction')(db);
+var azulExpress = require('azul-express')(db);
 
 db.model('Article', {
   title: db.attr(),
@@ -49,7 +50,7 @@ app.use(bodyParser.urlencoded());
 
 ## API
 
-### azulTransaction(db)
+### azulExpress(db)
 
 #### db
 
@@ -65,15 +66,15 @@ This project is distributed under the MIT license.
 [azul]: http://www.azuljs.com/
 [azul-transactions]: http://www.azuljs.com/guides/transactions/
 
-[travis-image]: http://img.shields.io/travis/wbyoung/azul-transaction.svg?style=flat
-[travis-url]: http://travis-ci.org/wbyoung/azul-transaction
-[npm-image]: http://img.shields.io/npm/v/azul-transaction.svg?style=flat
-[npm-url]: https://npmjs.org/package/azul-transaction
-[codeclimate-image]: http://img.shields.io/codeclimate/github/wbyoung/azul-transaction.svg?style=flat
-[codeclimate-url]: https://codeclimate.com/github/wbyoung/azul-transaction
-[coverage-image]: http://img.shields.io/coveralls/wbyoung/azul-transaction.svg?style=flat
-[coverage-url]: https://coveralls.io/r/wbyoung/azul-transaction
-[david-image]: http://img.shields.io/david/wbyoung/azul-transaction.svg?style=flat
-[david-url]: https://david-dm.org/wbyoung/azul-transaction
-[david-dev-image]: http://img.shields.io/david/dev/wbyoung/azul-transaction.svg?style=flat
-[david-dev-url]: https://david-dm.org/wbyoung/azul-transaction#info=devDependencies
+[travis-image]: http://img.shields.io/travis/wbyoung/azul-express.svg?style=flat
+[travis-url]: http://travis-ci.org/wbyoung/azul-express
+[npm-image]: http://img.shields.io/npm/v/azul-express.svg?style=flat
+[npm-url]: https://npmjs.org/package/azul-express
+[codeclimate-image]: http://img.shields.io/codeclimate/github/wbyoung/azul-express.svg?style=flat
+[codeclimate-url]: https://codeclimate.com/github/wbyoung/azul-express
+[coverage-image]: http://img.shields.io/coveralls/wbyoung/azul-express.svg?style=flat
+[coverage-url]: https://coveralls.io/r/wbyoung/azul-express
+[david-image]: http://img.shields.io/david/wbyoung/azul-express.svg?style=flat
+[david-url]: https://david-dm.org/wbyoung/azul-express
+[david-dev-image]: http://img.shields.io/david/dev/wbyoung/azul-express.svg?style=flat
+[david-dev-url]: https://david-dm.org/wbyoung/azul-express#info=devDependencies

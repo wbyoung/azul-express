@@ -6,8 +6,8 @@ var expect = chai.expect;
 var sinon = require('sinon'); chai.use(require('sinon-chai'));
 var azul = require('azul');
 
-var at, req, res, next, db, adapter;
-var azulTransaction = require('../index');
+var ae, req, res, next, db, adapter;
+var azulExpress = require('../index');
 var BPromise = require('bluebird');
 
 var Adapter = azul.Adapter.extend({
@@ -52,7 +52,7 @@ var pspy = function() {
   return sinon.spy(resolve);
 };
 
-describe('azul-transaction', function() {
+describe('azul-express', function() {
   beforeEach(function() {
     adapter = Adapter.create();
     db = azul.Database.create({ adapter: adapter });
@@ -62,14 +62,14 @@ describe('azul-transaction', function() {
     res.write = res._write = pspy();
     res.writeHead = res._writeHead = pspy();
     next = pspy();
-    at = azulTransaction(db);
+    ae = azulExpress(db);
   });
 
   describe('middleware', function() {
 
     describe('when begun', function() {
       beforeEach(function(done) {
-        at(req, res, next);
+        ae.transaction(req, res, next);
         next.wait.return().then(done, done);
       });
 
@@ -160,9 +160,9 @@ describe('azul-transaction', function() {
 
     it('performs rollback', function(done) {
       var setup = pspy();
-      at(req, res, setup); // setup
+      ae.transaction(req, res, setup); // setup
       setup.wait.then(function() {
-        at.error(new Error('exepcted'), req, res, next);
+        ae.error(new Error('exepcted'), req, res, next);
         return next.wait;
       })
       .then(function() {
@@ -176,24 +176,24 @@ describe('azul-transaction', function() {
   describe('wrapped route', function() {
 
     it('recognizes a next parameter', function() {
-      var route = at.route(function(req, res, next) { next(); });
+      var route = ae.route(function(req, res, next) { next(); });
       expect(route.length).to.eql(3);
     });
 
     it('recognizes an error parameter', function() {
-      var route = at.route(function(err, req, res, next) {
+      var route = ae.route(function(err, req, res, next) {
         /* jshint unused: false */
       });
       expect(route.length).to.eql(4);
     });
 
     it('recognizes an error parameter with function body', function() {
-      var route = at.route(function(err, req, res, next) { next(); });
+      var route = ae.route(function(err, req, res, next) { next(); });
       expect(route.length).to.eql(4);
     });
 
     it('accepts unknown parameter configurations as standard express params', function() {
-      var route = at.route(function(err, req, res, next, bad) {
+      var route = ae.route(function(err, req, res, next, bad) {
         /* jshint unused: false */
       });
       expect(route.length).to.eql(3);
@@ -201,7 +201,7 @@ describe('azul-transaction', function() {
 
     it('throws for unkown params following azul params', function() {
       expect(function() {
-        at.route(function(err, req, res, query, Item, bad) {
+        ae.route(function(err, req, res, query, Item, bad) {
           /* jshint unused: false */
         });
       }).to.throw(/unexpected arguments:.*query, item, bad/i);
@@ -209,7 +209,7 @@ describe('azul-transaction', function() {
 
     describe('with azul params', function() {
       beforeEach(function() {
-        this.route = at.route(function(req, res, next, query, Article) {
+        this.route = ae.route(function(req, res, next, query, Article) {
           /* jshint unused: false */
         });
       });
@@ -221,9 +221,9 @@ describe('azul-transaction', function() {
 
     it('works with middleware installed', function(done) {
       var context = {};
-      var setup = pspy(); at(req, res, setup); // setup middleware
+      var setup = pspy(); ae.transaction(req, res, setup); // setup middleware
       setup.wait.bind(context).then(function() {
-        var route = at.route(function(req, res, query, Article) {
+        var route = ae.route(function(req, res, query, Article) {
           context.query = query;
           context.Article = Article;
           query.select('comments').then(function() {
@@ -257,7 +257,7 @@ describe('azul-transaction', function() {
     it('works without middleware installed', function(done) {
       var context = {};
       BPromise.bind(context).then(function() {
-        var route = at.route(function(req, res, query, Article) {
+        var route = ae.route(function(req, res, query, Article) {
           context.query = query;
           context.Article = Article;
           query.select('comments').then(function() {
@@ -291,7 +291,7 @@ describe('azul-transaction', function() {
     it('works for defining error middleware', function(done) {
       var context = {};
       BPromise.bind(context).then(function() {
-        var route = at.route(function(err, req, res, next, query, Article) {
+        var route = ae.route(function(err, req, res, next, query, Article) {
           context.query = query;
           context.Article = Article;
           res.end();
@@ -315,7 +315,7 @@ describe('azul-transaction', function() {
     it('performs rollback if next is called with error', function(done) {
       var error = new Error('Expected');
       BPromise.resolve().then(function() {
-        var route = at.route(function(req, res, next, query) {
+        var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           next(error);
         });
@@ -337,7 +337,7 @@ describe('azul-transaction', function() {
 
     it('performs only performs one rollback if rolled back manually & through error', function(done) {
       BPromise.resolve().then(function() {
-        var route = at.route(function(req, res, next, query) {
+        var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           res.azul.rollback();
           next(new Error('Expected'));
@@ -356,7 +356,7 @@ describe('azul-transaction', function() {
 
     it('commits if next is called without arguments', function(done) {
       BPromise.resolve().then(function() {
-        var route = at.route(function(req, res, next, query) {
+        var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           next();
         });
@@ -377,7 +377,7 @@ describe('azul-transaction', function() {
 
     it('throws if next is called with non-error', function(done) {
       BPromise.resolve().then(function() {
-        var route = at.route(function(req, res, next, query) {
+        var route = ae.route(function(req, res, next, query) {
           query; // use all params (jshint)
           next('value');
         });
@@ -401,7 +401,7 @@ describe('azul-transaction', function() {
 
       it('calls next with error', function(done) {
         BPromise.bind().then(function() {
-          var route = at.route(function(req, res, query, Article) {
+          var route = ae.route(function(req, res, query, Article) {
             /* jshint unused: false */
           });
           return route(req, res, next); // invoke route
@@ -426,7 +426,7 @@ describe('azul-transaction', function() {
 
       it('calls next with error', function(done) {
         BPromise.bind().then(function() {
-          var route = at.route(function(req, res, query, Article) {
+          var route = ae.route(function(req, res, query, Article) {
             Article; // use all params (jshint)
             res.end();
           });
@@ -456,7 +456,7 @@ describe('azul-transaction', function() {
 
       it('calls next with error', function(done) {
         BPromise.bind().then(function() {
-          var route = at.route(function(req, res, query, Article) {
+          var route = ae.route(function(req, res, query, Article) {
             Article; // use all params (jshint)
             res.azul.rollback();
           });
@@ -491,7 +491,7 @@ describe('azul-transaction', function() {
         [{ id: 1, 'author_id': 5 }]);
 
       BPromise.bind().then(function() {
-        var route = at.route(function(req, res, query, Article) {
+        var route = ae.route(function(req, res, query, Article) {
           Article.objects.find(1).tap(function(article) {
             return article.fetchAuthor();
           })

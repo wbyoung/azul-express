@@ -278,8 +278,9 @@ var route = function(db, fn) {
 };
 
 module.exports = function(db) {
-  return _.extend(middleware(db), {
-    error: errorMiddleware(db),
-    route: _.partial(route, db),
-  });
+  var fn = _.partial(route, db);
+  fn.route = fn;
+  fn.transaction = middleware(db);
+  fn.catch = fn.error = errorMiddleware(db);
+  return fn;
 };
