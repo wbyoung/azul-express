@@ -233,7 +233,8 @@ var modelBinder = function(db, req) {
  */
 var route = function(db, fn, options) {
   var opts = _.defaults({}, options, {
-    transaction: false
+    transaction: false,
+    wrap: _.identity,
   });
 
   var match = fn.toString().match(/function.*?\((.*?)\)/i);
@@ -293,7 +294,8 @@ var route = function(db, fn, options) {
 
     // combine args & bind function we're wrapping
     var combinedArgs = [].concat(expressArgs, azulArgs);
-    var bound = fn.apply.bind(fn, this, combinedArgs);
+    var wrapped = opts.wrap(fn);
+    var bound = wrapped.apply.bind(wrapped, this, combinedArgs);
 
     // add execution to the promise chain. if the bound function returns a
     // promise, then we execute `next` automatically.

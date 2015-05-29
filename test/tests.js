@@ -315,6 +315,30 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
+    it('allows wrapping', function(done) {
+      var wrapper;
+      var wrap = sinon.spy(function(fn) {
+        wrapper = sinon.spy(function() {
+          return fn.apply(this, arguments);
+        });
+        return wrapper;
+      });
+
+      var emptyRoute = rspy(articleRoute);
+      var route = ae.route(emptyRoute, { wrap: wrap });
+
+      route(req, res, next)
+      .then(function() {
+        expect(emptyRoute).to.have.been.calledOnce;
+        expect(emptyRoute).to.have.been.calledWithExactly(req, res, db.query, db.model('article'));
+        expect(wrapper).to.have.been.calledOnce;
+        expect(wrapper).to.have.been.calledWithExactly(req, res, db.query, db.model('article'));
+        expect(wrap).to.have.been.calledOnce;
+        expect(wrap).to.have.been.calledWithExactly(emptyRoute);
+      })
+      .then(done, done);
+    });
+
     it('can call next', function(done) {
       var route = ae.route(function(req, res, next, query) {
         query; // use all params (jshint)
