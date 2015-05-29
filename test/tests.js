@@ -457,7 +457,7 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
-    it('throws if next is called with non-error', function(done) {
+    it('fails if next is called with non-error', function(done) {
       var route = ae.route(function(req, res, next, query) {
         query; // use all params (jshint)
         next('value');
