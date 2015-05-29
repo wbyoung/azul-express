@@ -260,13 +260,18 @@ var route = function(db, fn, options) {
     setupResponse(db, req, res, next);
 
     if (opts.transaction && !begun) {
-      promise = req.azul.transaction.begin();
+      promise = req.azul.transaction.begin().execute().catch(next);
     }
+
+    // wrap next now & all actions from this point forward should use the
+    // wrapped version so that if a transaction is active, it will be rolled
+    // back.
+    next = wrapNext(db, req, res, next);
 
     // form express arguments
     var expressArgs = _.take(args, expressParams.length);
     if (expressArgs.length >= 3) {
-      expressArgs.splice(-1, 1, wrapNext(db, req, res, next));
+      expressArgs.splice(-1, 1, next);
     }
 
     // setup the azul argument, binding queries and model classes

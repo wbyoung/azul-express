@@ -464,12 +464,12 @@ describe('azul-express', function() {
       }, { transaction: true });
 
       route(req, res, next).then(function() {
-        expect(adapter.executed).to.eql(['BEGIN']);
         return next.wait;
       })
       .then(function() {
         expect(next).to.have.been.calledOnce;
         expect(next.getCall(0).args[0]).to.match(/call.*next.*non-error/i);
+        expect(adapter.executed).to.eql(['BEGIN', 'ROLLBACK']);
       })
       .then(done, done);
     });
