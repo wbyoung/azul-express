@@ -208,8 +208,8 @@ var modelBinder = function(db, req) {
 };
 
 /**
- * A wrapper for Express routes that binds queries & model classes to the
- * transaction.
+ * A wrapper for decorated Express routes that binds queries & model classes to
+ * the transaction.
  *
  * @param {Database} db The Azul.js database on which bindings should be created.
  * @param {Function} fn The Express route to wrap.
@@ -290,7 +290,6 @@ var route = function(db, fn, options) {
 module.exports = function(db) {
   var fn = _.partial(route, db);
   fn.route = fn;
-  fn.di = fn;
   fn.transaction = transactionMiddleware(db);
   fn.rollback = rollbackMiddleware(db);
   fn.catch = fn.rollback;

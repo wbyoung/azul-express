@@ -75,10 +75,6 @@ describe('azul-express', function() {
     expect(ae).to.equal(ae.route);
   });
 
-  it('defines di as an alias for route', function() {
-    expect(ae.di).to.equal(ae.route);
-  });
-
   it('defines error as an alias for rollback', function() {
     expect(ae.error).to.equal(ae.rollback);
   });
