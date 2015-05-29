@@ -92,18 +92,12 @@ var setupResponse = function(db, req, res, next) {
  * @param {Function} next
  * @return {Function}
  */
-var wrapNext = function(db, req, res, next) {
+var transactionNext = function(db, req, res, next) {
   return function() {
     var args = _.toArray(arguments);
     var promise = BPromise.resolve();
-    if (!args[0] && res.azul) {
-      promise = res.azul.commit();
-    }
-    else if ((args[0] instanceof Error) && res.azul) {
+    if (args.length === 1 && (args[0] instanceof Error)) {
       promise = res.azul.rollback();
-    }
-    else if (args[0] && !(args[0] instanceof Error)) {
-      throw new Error('Unexpected call to `next` with non-error.');
     }
     return promise.then(next.apply.bind(next, this, args)).catch(next);
   };
@@ -277,7 +271,9 @@ var route = function(db, fn, options) {
     // wrap next now & all actions from this point forward should use the
     // wrapped version so that if a transaction is active, it will be rolled
     // back.
-    next = wrapNext(db, req, res, next);
+    if (req.azul.transaction) {
+      next = transactionNext(db, req, res, next);
+    }
 
     // form express arguments
     var expressArgs = _.take(args, expressParams.length);

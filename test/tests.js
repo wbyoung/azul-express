@@ -495,7 +495,7 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
-    it('commits if next is called without arguments', function(done) {
+    it('passes on calls to next without arguments', function(done) {
       var route = ae.route(function(req, res, next, query) {
         query; // use all params (jshint)
         next();
@@ -509,12 +509,13 @@ describe('azul-express', function() {
         expect(next).to.have.been.calledOnce;
         expect(next).to.have.been.calledWithExactly();
         expect(adapter.clients.length).to.eql(1);
-        expect(adapter.executed).to.eql(['BEGIN', 'COMMIT']);
+        // commit would occur on write from future middleware
+        expect(adapter.executed).to.eql(['BEGIN']);
       })
       .then(done, done);
     });
 
-    it('fails if next is called with non-error', function(done) {
+    it('passes on calls to next with non-error', function(done) {
       var route = ae.route(function(req, res, next, query) {
         query; // use all params (jshint)
         next('value');
@@ -525,8 +526,10 @@ describe('azul-express', function() {
       })
       .then(function() {
         expect(next).to.have.been.calledOnce;
-        expect(next.getCall(0).args[0]).to.match(/call.*next.*non-error/i);
-        expect(adapter.executed).to.eql(['BEGIN', 'ROLLBACK']);
+        expect(next).to.have.been.calledWithExactly('value');
+        expect(adapter.clients.length).to.eql(1);
+        // commit would occur on write from future middleware
+        expect(adapter.executed).to.eql(['BEGIN']);
       })
       .then(done, done);
     });
