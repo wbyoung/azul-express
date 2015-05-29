@@ -39,34 +39,31 @@ var setupResponse = function(db, req, res, next) {
 
   var transaction = req.azul.transaction;
   var pending = []; // operations waiting until after commit/rollback
-  var closing = false; // has commit/rollback begun?
-  var closed = false; // is transaction closed?
-  var promise;
+  var promise; // promise for close transaction (COMMIT/ROLLBACK)
 
-  var close = function() {
-    closed = true;
-    pending.forEach(function(fn) {
+  var runPending = function() {
+    var array = pending.slice();
+    pending = undefined;
+    array.forEach(function(fn) {
       fn();
     });
   };
 
   var commit = function() {
-    if (closing) { return promise; }
-    closing = true;
-    promise = transaction.commit().execute().then(close).catch(next);
+    if (promise) { return promise; }
+    promise = transaction.commit().execute().then(runPending).catch(next);
     return promise;
   };
 
   var rollback = function() {
-    if (closing) { return promise; }
-    closing = true;
-    promise = transaction.rollback().execute().then(close).catch(next);
+    if (promise) { return promise; }
+    promise = transaction.rollback().execute().then(runPending).catch(next);
     return promise;
   };
 
   var triggerCommit = function(fn) {
     return function() {
-      if (!closed) {
+      if (pending) {
         pending.push(fn.apply.bind(fn, this, arguments));
         commit();
       }
