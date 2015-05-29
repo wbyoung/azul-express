@@ -309,8 +309,7 @@ describe('azul-express', function() {
       route(req, res, next)
       .then(function() {
         expect(promise.isResolved()).to.eql(true);
-        expect(next).to.have.been.called;
-        expect(next).to.have.been.calledWithExactly(undefined);
+        expect(next).to.not.have.been.called;
       })
       .then(done, done);
     });
