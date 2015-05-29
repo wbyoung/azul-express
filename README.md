@@ -50,6 +50,12 @@ Type: `Boolean`
 Enable transaction support for this route regardless of whether the
 [`transaction`](#transaction) middleware is active.
 
+#### options.wrap
+
+Type: `Function`
+
+Specify a wrapper function to pre-wrap the decorated route.
+
 ### #transaction
 
 Express middleware for enabling transactions.
