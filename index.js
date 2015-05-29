@@ -164,6 +164,16 @@ var makeExpressErrorRoute = function(fn) {
 };
 
 /**
+ * Check if a value looks like a promise.
+ *
+ * @param {?} value
+ * @return {Boolean}
+ */
+var isPromise = function(value) {
+  return value && typeof value.then === 'function';
+};
+
+/**
  * Create a model class binder function.
  *
  * The resulting function should be called with the name of a model to bind. A
@@ -285,8 +295,14 @@ var route = function(db, fn, options) {
     var combinedArgs = [].concat(expressArgs, azulArgs);
     var bound = fn.apply.bind(fn, this, combinedArgs);
 
-    // start the transaction if it wasn't previously begun
-    return promise.then(bound).catch(next);
+    // add execution to the promise chain. if the bound function returns a
+    // promise, then we execute `next` automatically.
+    promise = promise.bind(this).then(function() {
+      var result = bound();
+      return isPromise(result) ? result.then(next) : result;
+    });
+
+    return promise.catch(next);
   });
 };
 

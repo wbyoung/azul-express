@@ -302,6 +302,19 @@ describe('azul-express', function() {
       .then(done, done);
     });
 
+    it('accepts promises as a return values', function(done) {
+      var promise = BPromise.delay(5);
+      var route = ae.route(function() { return promise; });
+
+      route(req, res, next)
+      .then(function() {
+        expect(promise.isResolved()).to.eql(true);
+        expect(next).to.have.been.called;
+        expect(next).to.have.been.calledWithExactly(undefined);
+      })
+      .then(done, done);
+    });
+
     it('can call next', function(done) {
       var route = ae.route(function(req, res, next, query) {
         query; // use all params (jshint)
@@ -409,6 +422,26 @@ describe('azul-express', function() {
 
       route(req, res, next).then(function() {
         expect(adapter.executed).to.eql(['BEGIN']);
+        return next.wait;
+      })
+      .then(function() {
+        expect(next).to.have.been.calledOnce;
+        expect(next).to.have.been.calledWithExactly(new Error('Expected'));
+        expect(next.getCall(0).args[0]).to.equal(error);
+        expect(adapter.clients.length).to.eql(1);
+        expect(adapter.executed).to.eql(['BEGIN', 'ROLLBACK']);
+      })
+      .then(done, done);
+    });
+
+    it('performs rollback if returned promise is rejected', function(done) {
+      var error = new Error('Expected');
+      var route = ae.route(function(req, res, next, query) {
+        query; // use all params (jshint)
+        return BPromise.reject(error);
+      }, { transaction: true });
+
+      route(req, res, next).then(function() {
         return next.wait;
       })
       .then(function() {
