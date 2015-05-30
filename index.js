@@ -1,7 +1,7 @@
 'use strict';
 
 var _ = require('lodash');
-var BPromise = require('bluebird');
+var Promise = require('bluebird');
 
 /**
  * Setup a request object, adding azul functionality.
@@ -95,7 +95,7 @@ var setupResponse = function(db, req, res, next) {
 var transactionNext = function(db, req, res, next) {
   return function() {
     var args = _.toArray(arguments);
-    var promise = BPromise.resolve();
+    var promise = Promise.resolve();
     if (args.length === 1 && (args[0] instanceof Error)) {
       promise = res.azul.rollback();
     }
@@ -126,7 +126,7 @@ var transactionMiddleware = function(db) {
  */
 var rollbackMiddleware = function(/*db*/) {
   return function(err, req, res, next) {
-    var promise = res.azul ? res.azul.rollback() : BPromise.resolve();
+    var promise = res.azul ? res.azul.rollback() : Promise.resolve();
     promise.return(err).then(next).catch(next);
   };
 };
@@ -249,7 +249,7 @@ var route = function(db, fn, options) {
     makeExpressStandardRoute;
 
   return expressRoute(function(args, req, res, next) {
-    var promise = BPromise.resolve();
+    var promise = Promise.resolve();
     var begun = req.azul && req.azul.transaction;
     setupRequest(db, req, { transaction: opts.transaction });
     setupResponse(db, req, res, next);

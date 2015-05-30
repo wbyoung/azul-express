@@ -8,7 +8,7 @@ var azul = require('azul');
 
 var ae, req, res, next, db, adapter;
 var azulExpress = require('../index');
-var BPromise = require('bluebird');
+var Promise = require('bluebird');
 
 var Adapter = azul.Adapter.extend({
   init: function() {
@@ -31,10 +31,10 @@ var Adapter = azul.Adapter.extend({
     responder.regex = regex;
     this._responders.unshift(responder);
   },
-  _connect: BPromise.method(function() { return { id: ++this.__identity__.cid }; }),
-  _disconnect: BPromise.method(function(/*client*/) {}),
-  _execute: BPromise.method(function(client, sql, args) {
-    return BPromise.delay(1).bind(this).then(function() {
+  _connect: Promise.method(function() { return { id: ++this.__identity__.cid }; }),
+  _disconnect: Promise.method(function(/*client*/) {}),
+  _execute: Promise.method(function(client, sql, args) {
+    return Promise.delay(1).bind(this).then(function() {
       var responder = _.find(this._responders,
         function(r) { return sql.match(r.regex); });
       var result = responder && responder(client, sql, args);
@@ -47,7 +47,7 @@ var Adapter = azul.Adapter.extend({
 
 var pspy = function() {
   var resolve;
-  var promise = new BPromise(function() { resolve = arguments[0]; });
+  var promise = new Promise(function() { resolve = arguments[0]; });
   resolve.wait = promise;
   return sinon.spy(resolve);
 };
@@ -299,7 +299,7 @@ describe('azul-express', function() {
     });
 
     it('accepts promises as a return values', function(done) {
-      var promise = BPromise.delay(5);
+      var promise = Promise.delay(5);
       var route = ae.route(function() { return promise; });
 
       route(req, res, next)
@@ -457,7 +457,7 @@ describe('azul-express', function() {
       var error = new Error('Expected');
       var route = ae.route(function(req, res, next, query) {
         query; // use all params (jshint)
-        return BPromise.reject(error);
+        return Promise.reject(error);
       }, { transaction: true });
 
       route(req, res, next).then(function() {
