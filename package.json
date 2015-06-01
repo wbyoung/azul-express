@@ -4,8 +4,8 @@
   "description": "Transaction Middleware for Azul.js",
   "main": "index.js",
   "scripts": {
-    "test": "istanbul cover node_modules/.bin/_mocha --report html --",
-    "test-travis": "istanbul cover node_modules/.bin/_mocha --report lcovonly --"
+    "test": "jshint . && istanbul cover node_modules/.bin/_mocha --report html --",
+    "test-travis": "jshint . && istanbul cover node_modules/.bin/_mocha --report lcovonly --"
   },
   "files": [
     "index.js",
